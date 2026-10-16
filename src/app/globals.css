@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0c0f;
+  --color-surface: #12151a;
+  --color-surface-2: #191d24;
+  --color-border: #2a303a;
+  --color-text: #e9ecf1;
+  --color-muted: #9aa4b4;
+  --color-accent: #ff6a1a;
+  --color-accent-soft: #ff6a1a26;
+  --color-success: #3ccf8e;
+  --color-warning: #f5c044;
+  --color-danger: #ff5a5a;
+  --color-info: #5aa9ff;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-oxanium), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.01em;
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  input, select, textarea {
+    color-scheme: dark;
+  }
+  dialog::backdrop {
+    background: rgb(0 0 0 / 0.75);
+  }
+}
+
+@layer components {
+  .btn, .btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-accent text-black hover:bg-[#ff8442];
+  }
+  .btn-secondary {
+    @apply border-border bg-surface-2 text-text hover:border-muted;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-surface-2 hover:text-text;
+  }
+  .btn-danger {
+    @apply border-danger/40 bg-danger/10 text-danger hover:bg-danger/20;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .input {
+    @apply w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted/60 focus:border-accent focus:outline-none;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-text;
+  }
+  .hint {
+    @apply mt-1 text-xs text-muted;
+  }
+  .card {
+    @apply rounded-xl border border-border bg-surface;
+  }
+  .link {
+    @apply text-accent underline-offset-2 hover:underline;
+  }
+}

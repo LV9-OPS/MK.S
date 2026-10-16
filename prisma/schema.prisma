@@ -1,0 +1,195 @@
+// MK.S — schéma de données.
+// Les champs « énumérés » sont des String validées côté serveur (src/lib/constants.ts),
+// ce qui garde le schéma portable entre SQLite (dev / petit déploiement) et PostgreSQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  displayName  String
+  gamertag     String?
+  passwordHash String
+  /// PLAYER | ADMIN
+  role         String   @default("PLAYER")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions          Session[]
+  weeklyStats       WeeklyStat[] @relation("StatPlayer")
+  submittedStats    WeeklyStat[] @relation("StatSubmitter")
+  reviewedStats     WeeklyStat[] @relation("StatReviewer")
+  resourcesUploaded Resource[]
+  auditLogs         AuditLog[]
+}
+
+model Session {
+  /// SHA-256 du jeton envoyé dans le cookie (le jeton brut n'est jamais stocké)
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MetaWeapon {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  name           String
+  /// voir WEAPON_CATEGORIES
+  category       String
+  game           String
+  mode           String
+  /// S | A | B | C
+  tier           String
+  /// CURRENT_META | RISING | FALLING | NEW | TO_VERIFY
+  trend          String
+  sourceName     String
+  sourceUrl      String
+  /// Date de la dernière vérification éditoriale de la fiche
+  lastVerifiedAt DateTime
+  notes          String?
+  imageKey       String?
+  imageMime      String?
+  published      Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  loadouts       MetaLoadout[]
+
+  @@index([published, game, mode])
+}
+
+model MetaLoadout {
+  id          String     @id @default(cuid())
+  weaponId    String
+  name        String
+  /// JSON : [{ "slot": "Bouche", "name": "..." }]
+  attachments String
+  /// JSON : [{ "slot": "Atout 1", "name": "..." }] (équipement, atouts…)
+  equipment   String     @default("[]")
+  notes       String?
+  position    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  weapon      MetaWeapon @relation(fields: [weaponId], references: [id], onDelete: Cascade)
+
+  @@index([weaponId])
+}
+
+model Tournament {
+  id                   String    @id @default(cuid())
+  name                 String
+  /// FACEIT | CMG | OTHER
+  platform             String
+  game                 String
+  format               String?
+  /// SOLO | TEAM | UNKNOWN
+  participantType      String    @default("UNKNOWN")
+  teamSize             Int?
+  startsAt             DateTime
+  registrationDeadline DateTime?
+  /// Montant en unités mineures (centimes) ; null = non communiqué
+  prizeAmountMinor     Int?
+  /// Code ISO 4217 (EUR, USD…) ; null si montant inconnu
+  prizeCurrency        String?
+  /// UPCOMING | REGISTRATION_OPEN | REGISTRATION_CLOSED | ONGOING | COMPLETED | UNKNOWN
+  status               String    @default("UNKNOWN")
+  region               String?
+  externalUrl          String
+  /// MANUAL | FACEIT_API
+  dataSource           String    @default("MANUAL")
+  externalId           String?   @unique
+  lastVerifiedAt       DateTime
+  notes                String?
+  published            Boolean   @default(false)
+  archived             Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([published, archived, startsAt])
+}
+
+model Resource {
+  id           String    @id @default(cuid())
+  name         String
+  description  String?
+  /// voir RESOURCE_CATEGORIES
+  category     String
+  /// Clé de stockage privée (nom aléatoire, jamais dérivé du nom utilisateur)
+  fileKey      String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  previewKey   String?
+  previewMime  String?
+  version      String?
+  /// MEMBERS | ADMINS
+  access       String    @default("MEMBERS")
+  published    Boolean   @default(false)
+  publishedAt  DateTime?
+  uploadedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  uploadedBy   User?     @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([published, category])
+}
+
+model WeeklyStat {
+  id                 String    @id @default(cuid())
+  playerId           String
+  /// Lundi de la semaine ISO (YYYY-MM-DD, fuseau de l'équipe)
+  weekStart          String
+  /// Dimanche de la même semaine (YYYY-MM-DD)
+  weekEnd            String
+  game               String
+  mode               String
+  screenshotKey      String
+  screenshotMime     String
+  matchesPlayed      Int?
+  wins               Int?
+  kills              Int?
+  deaths             Int?
+  kdRatio            Float?
+  notes              String?
+  submittedAt        DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  submittedById      String?
+  /// PENDING | VERIFIED | REJECTED
+  verificationStatus String    @default("PENDING")
+  reviewedById       String?
+  reviewedAt         DateTime?
+  reviewNote         String?
+
+  player      User  @relation("StatPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+  submittedBy User? @relation("StatSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy  User? @relation("StatReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([playerId, weekStart, game, mode])
+  @@index([playerId, weekStart])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  /// JSON libre (jamais de secret)
+  details    String?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([action])
+}
